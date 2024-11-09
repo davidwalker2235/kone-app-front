@@ -33,7 +33,7 @@ export const drawLines = (
     vertices: { x: number; y: number }[],
     mouseX?: number,
     mouseY?: number,
-    cerrarPared?: boolean
+    polygonClosed?: boolean
   ) => {
     if (vertices.length === 0) return;
   
@@ -43,7 +43,7 @@ export const drawLines = (
       contexto.lineTo(vertices[i].x, vertices[i].y);
     }
   
-    if (cerrarPared) {
+    if (polygonClosed) {
       contexto.closePath();
     } else if (mouseX !== undefined && mouseY !== undefined) {
       contexto.lineTo(mouseX, mouseY);
@@ -77,6 +77,23 @@ export const drawLines = (
         return { indice: i, tipoVertice: 'inicio' as const };
       } else if (distanciaFin <= radio) {
         return { indice: i, tipoVertice: 'fin' as const };
+      }
+    }
+    return null;
+  };
+  
+  // NUEVA FUNCIÓN PARA DETECTAR CLIC EN VÉRTICES DEL POLÍGONO
+  export const hitTestPolygonVertex = (
+    x: number,
+    y: number,
+    vertices: { x: number; y: number }[]
+  ) => {
+    const radio = 5; // Radio del vértice
+    for (let i = 0; i < vertices.length; i++) {
+      const vertice = vertices[i];
+      const distancia = Math.hypot(x - vertice.x, y - vertice.y);
+      if (distancia <= radio) {
+        return i; // Devolver el índice del vértice seleccionado
       }
     }
     return null;
