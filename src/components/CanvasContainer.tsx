@@ -99,12 +99,21 @@ const CanvasContainer = () => {
 
   const finalizarInteraccion = () => {
     if (dibujando) {
-      // Agregar nueva línea al finalizar el dibujo
-      const nuevaLinea = {
-        inicio: posicionInicio,
-        fin: posicionFin,
-      };
-      setLineas([...lineas, nuevaLinea]);
+      // Calcular la distancia entre el inicio y el fin de la línea
+      const distancia = Math.hypot(
+        posicionFin.x - posicionInicio.x,
+        posicionFin.y - posicionInicio.y
+      );
+
+      // Solo agregar la línea si la distancia es mayor que cero
+      if (distancia > 0) {
+        // Agregar nueva línea al finalizar el dibujo
+        const nuevaLinea = {
+          inicio: posicionInicio,
+          fin: posicionFin,
+        };
+        setLineas([...lineas, nuevaLinea]);
+      }
       setDibujando(false);
     }
     if (arrastrandoVertice) {
@@ -181,34 +190,41 @@ const CanvasContainer = () => {
     });
 
     // Dibujar el polígono en construcción
-    if (poligonoActual.length > 0) {
+    if (modoParedes && poligonoActual.length > 0) {
       drawPolygon(contexto, poligonoActual, mouseX, mouseY, false);
     }
 
-    // Si estamos dibujando una nueva línea, la dibujamos
+    // Si estamos dibujando una nueva línea, la dibujamos SOLO SI HAY MOVIMIENTO
     if (dibujando) {
-      // Dibujar línea en curso
-      contexto.beginPath();
-      contexto.moveTo(posicionInicio.x, posicionInicio.y);
-      contexto.lineTo(posicionFin.x, posicionFin.y);
-      contexto.strokeStyle = 'black';
-      contexto.lineWidth = 2;
-      contexto.stroke();
-      contexto.closePath();
+      const distancia = Math.hypot(
+        posicionFin.x - posicionInicio.x,
+        posicionFin.y - posicionInicio.y
+      );
 
-      // Dibujar vértice inicial
-      contexto.beginPath();
-      contexto.arc(posicionInicio.x, posicionInicio.y, 5, 0, Math.PI * 2);
-      contexto.fillStyle = 'red';
-      contexto.fill();
-      contexto.closePath();
+      if (distancia > 0) {
+        // Dibujar línea en curso
+        contexto.beginPath();
+        contexto.moveTo(posicionInicio.x, posicionInicio.y);
+        contexto.lineTo(posicionFin.x, posicionFin.y);
+        contexto.strokeStyle = 'black';
+        contexto.lineWidth = 2;
+        contexto.stroke();
+        contexto.closePath();
 
-      // Dibujar vértice final
-      contexto.beginPath();
-      contexto.arc(posicionFin.x, posicionFin.y, 5, 0, Math.PI * 2);
-      contexto.fillStyle = 'red';
-      contexto.fill();
-      contexto.closePath();
+        // Dibujar vértice inicial
+        contexto.beginPath();
+        contexto.arc(posicionInicio.x, posicionInicio.y, 5, 0, Math.PI * 2);
+        contexto.fillStyle = 'red';
+        contexto.fill();
+        contexto.closePath();
+
+        // Dibujar vértice final
+        contexto.beginPath();
+        contexto.arc(posicionFin.x, posicionFin.y, 5, 0, Math.PI * 2);
+        contexto.fillStyle = 'red';
+        contexto.fill();
+        contexto.closePath();
+      }
     }
   };
 
