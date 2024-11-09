@@ -17,6 +17,8 @@ import {
   hitTestSquareEdge,
 } from './SquareLogic';
 import { clearCanvas } from './CanvasLogic';
+import LoadingDialog from './LoadingDialog';
+import plane from './images/Plane.png';
 
 const CanvasContainer = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -26,6 +28,7 @@ const CanvasContainer = () => {
   const [modoParedes, setModoParedes] = useState(false);
   const [modoCuadrado, setModoCuadrado] = useState(false);
   const [modoBorrar, setModoBorrar] = useState(false);
+  const [showLoading, setShowLoading] = useState(false);
 
   // Estados para líneas
   const [lineas, setLineas] = useState<
@@ -56,6 +59,9 @@ const CanvasContainer = () => {
   const [indiceSquareSeleccionado, setIndiceSquareSeleccionado] = useState<number | null>(null);
   const [indiceVerticeSquareSeleccionado, setIndiceVerticeSquareSeleccionado] = useState<number | null>(null);
 
+  // Imagen de fondo
+  const [imagenFondo, setImagenFondo] = useState<HTMLImageElement | null>(null);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -73,6 +79,15 @@ const CanvasContainer = () => {
     ajustarTamañoCanvas();
     window.addEventListener('resize', ajustarTamañoCanvas);
 
+    // Cargar la imagen de fondo
+    const imagen = new Image();
+    // Reemplaza 'ruta-de-la-imagen.jpg' con la ruta o URL de tu imagen
+    imagen.src = plane // Actualiza la ruta de la imagen aquí
+    imagen.onload = () => {
+      setImagenFondo(imagen);
+      draw(); // Redibujar el canvas una vez que la imagen esté cargada
+    };
+
     return () => {
       window.removeEventListener('resize', ajustarTamañoCanvas);
     };
@@ -88,6 +103,7 @@ const CanvasContainer = () => {
     posicionFinLinea,
     squares,
     dibujandoCuadrado,
+    imagenFondo, // Asegurarse de redibujar cuando la imagen cambie
   ]);
 
   const obtenerCoordenadasCorrectas = (evento: React.MouseEvent<HTMLCanvasElement>) => {
@@ -319,7 +335,11 @@ const CanvasContainer = () => {
       draw(offsetX, offsetY);
     } else if (dibujandoCuadrado && modoCuadrado) {
       draw(offsetX, offsetY);
-    } else if (arrastrandoVerticeLinea && indiceLineaSeleccionada !== null && tipoVerticeLineaSeleccionado) {
+    } else if (
+      arrastrandoVerticeLinea &&
+      indiceLineaSeleccionada !== null &&
+      tipoVerticeLineaSeleccionado
+    ) {
       // Actualizar posición del vértice de la línea
       const nuevasLineas = [...lineas];
       const linea = nuevasLineas[indiceLineaSeleccionada];
@@ -381,6 +401,14 @@ const CanvasContainer = () => {
 
     // Limpiar el canvas
     contexto.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Dibujar la imagen de fondo
+    if (imagenFondo) {
+      contexto.save();
+      contexto.globalAlpha = 0.4; // 40% opaco, 60% transparente
+      contexto.drawImage(imagenFondo, 0, 0, canvas.width, canvas.height);
+      contexto.restore();
+    }
 
     // Dibujar líneas
     drawLines(contexto, lineas);
@@ -568,6 +596,10 @@ const CanvasContainer = () => {
     setPoligonoActual([]);
   };
 
+  const sendPlanol = () => {
+    setShowLoading(true);
+  };
+
   const handleMostrarCoordenadas = () => {
     console.log('Coordenadas de los vértices de las líneas:', lineas);
     console.log('Coordenadas de los polígonos:', poligonos);
@@ -575,33 +607,42 @@ const CanvasContainer = () => {
   };
 
   return (
-    <div style={{ width: '50%', display: 'inline-block', verticalAlign: 'top', height: '100vh' }}>
+    <div
+      style={{
+        width: '50%',
+        display: 'inline-block',
+        verticalAlign: 'top',
+        height: '100vh',
+      }}
+    >
+      <LoadingDialog open={showLoading} />
       <div>
-      <button
-        onClick={handleActivarDibujo}
-        style={{ backgroundColor: modoDibujo ? 'green' : 'initial' }}
-      >
-        {modoDibujo ? '✎' : '✎'}
-      </button>
-      <button
-        onClick={handleActivarParedes}
-        style={{ backgroundColor: modoParedes ? 'green' : 'initial' }}
-      >
-        {modoParedes ? '📐' : '📐'}
-      </button>
-      <button
-        onClick={handleActivarCuadrado}
-        style={{ backgroundColor: modoCuadrado ? 'green' : 'initial' }}
-      >
-        {modoCuadrado ? '🔳' : '🔳'}
-      </button>
-      <button
-        onClick={handleActivarBorrar}
-        style={{ backgroundColor: modoBorrar ? 'red' : 'initial' }}
-      >
-        🗑
-      </button>
-      <button onClick={handleLimpiarCanvas}>Clean screen</button>
+        <button
+          onClick={handleActivarDibujo}
+          style={{ backgroundColor: modoDibujo ? 'green' : 'initial' }}
+        >
+          {modoDibujo ? '✎' : '✎'}
+        </button>
+        <button
+          onClick={handleActivarParedes}
+          style={{ backgroundColor: modoParedes ? 'green' : 'initial' }}
+        >
+          {modoParedes ? '📐' : '📐'}
+        </button>
+        <button
+          onClick={handleActivarCuadrado}
+          style={{ backgroundColor: modoCuadrado ? 'green' : 'initial' }}
+        >
+          {modoCuadrado ? '🔳' : '🔳'}
+        </button>
+        <button
+          onClick={handleActivarBorrar}
+          style={{ backgroundColor: modoBorrar ? 'red' : 'initial' }}
+        >
+          🗑
+        </button>
+        <button onClick={handleLimpiarCanvas}>Clean screen</button>
+        <button onClick={sendPlanol}>Send plane</button>
       </div>
 
       <div style={{ width: '100%', height: 'calc(100% - 150px)' }}>
