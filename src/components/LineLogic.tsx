@@ -1,3 +1,5 @@
+// LineLogic.tsx
+
 export const drawLines = (
     contexto: CanvasRenderingContext2D,
     lineas: { inicio: { x: number; y: number }; fin: { x: number; y: number } }[]
@@ -82,7 +84,7 @@ export const drawLines = (
     return null;
   };
   
-  // NUEVA FUNCIÓN PARA DETECTAR CLIC EN VÉRTICES DEL POLÍGONO
+  // Función para detectar si se ha hecho clic en un vértice de un polígono
   export const hitTestPolygonVertex = (
     x: number,
     y: number,
