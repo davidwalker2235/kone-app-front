@@ -5,8 +5,8 @@ import ModelContainer from './components/ModelContainer';
 function App() {
   
   return (
-    <div style={{display: 'flex', flexDirection: 'column'}}>
-      {/*<CanvasContainer />*/}
+    <div style={{ display: 'flex', height: '100vh' }}>
+      <CanvasContainer />
       <ModelContainer />
     </div>
   );

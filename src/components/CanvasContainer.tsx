@@ -24,7 +24,7 @@ const CanvasContainer = () => {
   // Modos de dibujo
   const [modoDibujo, setModoDibujo] = useState(false);
   const [modoParedes, setModoParedes] = useState(false);
-  const [modoCuadrado, setModoCuadrado] = useState(false); // Nuevo estado para modo cuadrado
+  const [modoCuadrado, setModoCuadrado] = useState(false);
   const [modoBorrar, setModoBorrar] = useState(false);
 
   // Estados para líneas
@@ -59,11 +59,23 @@ const CanvasContainer = () => {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
 
-    // Inicializar el contexto y dibujar
-    draw();
+    // Ajustar tamaño del canvas al tamaño real en pantalla
+    const ajustarTamañoCanvas = () => {
+      const contenedor = canvas.parentElement;
+      if (contenedor) {
+        const rect = contenedor.getBoundingClientRect();
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+      }
+    };
+
+    ajustarTamañoCanvas();
+    window.addEventListener('resize', ajustarTamañoCanvas);
+
+    return () => {
+      window.removeEventListener('resize', ajustarTamañoCanvas);
+    };
   }, []);
 
   useEffect(() => {
@@ -78,8 +90,22 @@ const CanvasContainer = () => {
     dibujandoCuadrado,
   ]);
 
+  const obtenerCoordenadasCorrectas = (evento: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+
+    const escalaX = canvas.width / rect.width;
+    const escalaY = canvas.height / rect.height;
+
+    const x = (evento.clientX - rect.left) * escalaX;
+    const y = (evento.clientY - rect.top) * escalaY;
+
+    return { x, y };
+  };
+
   const iniciarInteraccion = (evento: React.MouseEvent<HTMLCanvasElement>) => {
-    const { offsetX, offsetY } = evento.nativeEvent;
+    const { x: offsetX, y: offsetY } = obtenerCoordenadasCorrectas(evento);
 
     if (modoBorrar) {
       // Verificar si se hizo clic en un borde de algún polígono
@@ -285,7 +311,7 @@ const CanvasContainer = () => {
   };
 
   const manejarMovimiento = (evento: React.MouseEvent<HTMLCanvasElement>) => {
-    const { offsetX, offsetY } = evento.nativeEvent;
+    const { x: offsetX, y: offsetY } = obtenerCoordenadasCorrectas(evento);
 
     if (dibujandoLinea) {
       setPosicionFinLinea({ x: offsetX, y: offsetY });
@@ -549,7 +575,8 @@ const CanvasContainer = () => {
   };
 
   return (
-    <div>
+    <div style={{ width: '50%', display: 'inline-block', verticalAlign: 'top', height: '100vh' }}>
+      <div>
       <button
         onClick={handleActivarDibujo}
         style={{ backgroundColor: modoDibujo ? 'green' : 'initial' }}
@@ -575,24 +602,29 @@ const CanvasContainer = () => {
         🗑
       </button>
       <button onClick={handleLimpiarCanvas}>Clean screen</button>
-      <button onClick={handleMostrarCoordenadas}>Show coordenates</button>
+      </div>
 
-      <canvas
-        ref={canvasRef}
-        style={{
-          border: '1px solid #000',
-          cursor:
-            modoDibujo || modoParedes || modoCuadrado
-              ? 'crosshair'
-              : modoBorrar
-              ? 'pointer'
-              : 'default',
-        }}
-        onMouseDown={iniciarInteraccion}
-        onMouseUp={finalizarInteraccion}
-        onMouseOut={finalizarInteraccion}
-        onMouseMove={manejarMovimiento}
-      />
+      <div style={{ width: '100%', height: 'calc(100% - 150px)' }}>
+        <canvas
+          ref={canvasRef}
+          style={{
+            border: '1px solid #000',
+            cursor:
+              modoDibujo || modoParedes || modoCuadrado
+                ? 'crosshair'
+                : modoBorrar
+                ? 'pointer'
+                : 'default',
+            width: '100%',
+            height: '100%',
+            display: 'block',
+          }}
+          onMouseDown={iniciarInteraccion}
+          onMouseUp={finalizarInteraccion}
+          onMouseOut={finalizarInteraccion}
+          onMouseMove={manejarMovimiento}
+        />
+      </div>
 
       {/* Mostrar coordenadas en la interfaz */}
       <div>

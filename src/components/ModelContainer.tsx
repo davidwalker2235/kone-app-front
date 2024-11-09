@@ -5,7 +5,7 @@ import { OrbitControls } from '@react-three/drei';
 
 const ModelContainer = () => {
     return (
-        <div style={{width: '100%', height:'100vh'}}>
+        <div style={{ flex: 1 }}>
             <Canvas camera={{zoom: 1, position: [15,20,15]}}>
                 <ambientLight intensity={0.5}/>
                 <pointLight intensity={1500} position={[35, 35, 0]}/>
