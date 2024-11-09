@@ -14,52 +14,16 @@ export const drawLines = (
       contexto.stroke();
       contexto.closePath();
   
-      // Dibujar vértice inicial
+      // Dibujar vértices
       contexto.beginPath();
       contexto.arc(linea.inicio.x, linea.inicio.y, 5, 0, Math.PI * 2);
       contexto.fillStyle = 'red';
       contexto.fill();
       contexto.closePath();
   
-      // Dibujar vértice final
       contexto.beginPath();
       contexto.arc(linea.fin.x, linea.fin.y, 5, 0, Math.PI * 2);
       contexto.fillStyle = 'red';
-      contexto.fill();
-      contexto.closePath();
-    });
-  };
-  
-  export const drawPolygon = (
-    contexto: CanvasRenderingContext2D,
-    vertices: { x: number; y: number }[],
-    mouseX?: number,
-    mouseY?: number,
-    polygonClosed?: boolean
-  ) => {
-    if (vertices.length === 0) return;
-  
-    contexto.beginPath();
-    contexto.moveTo(vertices[0].x, vertices[0].y);
-    for (let i = 1; i < vertices.length; i++) {
-      contexto.lineTo(vertices[i].x, vertices[i].y);
-    }
-  
-    if (polygonClosed) {
-      contexto.closePath();
-    } else if (mouseX !== undefined && mouseY !== undefined) {
-      contexto.lineTo(mouseX, mouseY);
-    }
-  
-    contexto.strokeStyle = 'blue';
-    contexto.lineWidth = 2;
-    contexto.stroke();
-  
-    // Dibujar vértices
-    vertices.forEach((vertice) => {
-      contexto.beginPath();
-      contexto.arc(vertice.x, vertice.y, 5, 0, Math.PI * 2);
-      contexto.fillStyle = 'green';
       contexto.fill();
       contexto.closePath();
     });
@@ -74,7 +38,7 @@ export const drawLines = (
       const linea = lineas[i];
       const distanciaInicio = Math.hypot(x - linea.inicio.x, y - linea.inicio.y);
       const distanciaFin = Math.hypot(x - linea.fin.x, y - linea.fin.y);
-      const radio = 5; // Radio del círculo (vértice)
+      const radio = 5; // Radio del vértice
       if (distanciaInicio <= radio) {
         return { indice: i, tipoVertice: 'inicio' as const };
       } else if (distanciaFin <= radio) {
@@ -84,26 +48,37 @@ export const drawLines = (
     return null;
   };
   
-  // Función para detectar si se ha hecho clic en un vértice de un polígono
-  export const hitTestPolygonVertex = (
+  // Nueva función para detectar si se ha hecho clic cerca de una línea
+  export const hitTestLine = (
     x: number,
     y: number,
-    vertices: { x: number; y: number }[]
-  ) => {
-    const radio = 5; // Radio del vértice
-    for (let i = 0; i < vertices.length; i++) {
-      const vertice = vertices[i];
-      const distancia = Math.hypot(x - vertice.x, y - vertice.y);
-      if (distancia <= radio) {
-        return i; // Devolver el índice del vértice seleccionado
+    lineas: { inicio: { x: number; y: number }; fin: { x: number; y: number } }[]
+  ): number | null => {
+    const tolerancia = 5; // Distancia máxima para considerar que el clic está cerca de la línea
+    for (let i = 0; i < lineas.length; i++) {
+      const linea = lineas[i];
+      if (
+        isPointNearLine(linea.inicio.x, linea.inicio.y, linea.fin.x, linea.fin.y, x, y, tolerancia)
+      ) {
+        return i; // Devolver el índice de la línea
       }
     }
     return null;
   };
   
-  export const clearCanvas = (canvas: HTMLCanvasElement) => {
-    const contexto = canvas.getContext('2d');
-    if (contexto) {
-      contexto.clearRect(0, 0, canvas.width, canvas.height);
-    }
+  // Función auxiliar para verificar si un punto está cerca de una línea
+  const isPointNearLine = (
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+    px: number,
+    py: number,
+    tolerancia: number
+  ): boolean => {
+    const longitudLinea = Math.hypot(x2 - x1, y2 - y1);
+    if (longitudLinea === 0) return false; // Evitar división por cero
+    const distancia =
+      Math.abs((y2 - y1) * px - (x2 - x1) * py + x2 * y1 - y2 * x1) / longitudLinea;
+    return distancia <= tolerancia;
   };

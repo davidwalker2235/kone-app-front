@@ -1,56 +1,96 @@
+// CanvasContainer.tsx
+
 import React, { useRef, useState, useEffect } from 'react';
 import {
   drawLines,
   hitTestVertex,
-  clearCanvas,
-  drawPolygon,
-  hitTestPolygonVertex,
+  hitTestLine,
 } from './LineLogic';
+import {
+  drawPolygons,
+  hitTestPolygonsVertex,
+  hitTestPolygonEdge,
+} from './PolygonLogic';
+import { clearCanvas } from './CanvasLogic';
 
 const CanvasContainer = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  // Estados para el dibujo de líneas
-  const [dibujando, setDibujando] = useState(false);
-  const [posicionInicio, setPosicionInicio] = useState({ x: 0, y: 0 });
-  const [posicionFin, setPosicionFin] = useState({ x: 0, y: 0 });
+  // Modos de dibujo
+  const [modoDibujo, setModoDibujo] = useState(false);
+  const [modoParedes, setModoParedes] = useState(false);
+  const [modoBorrar, setModoBorrar] = useState(false); // Nuevo estado para el modo borrar
+
+  // Estados para líneas
   const [lineas, setLineas] = useState<
     { inicio: { x: number; y: number }; fin: { x: number; y: number } }[]
   >([]);
-
-  const [arrastrandoVertice, setArrastrandoVertice] = useState(false);
+  const [dibujandoLinea, setDibujandoLinea] = useState(false);
+  const [posicionInicioLinea, setPosicionInicioLinea] = useState({ x: 0, y: 0 });
+  const [posicionFinLinea, setPosicionFinLinea] = useState({ x: 0, y: 0 });
+  const [arrastrandoVerticeLinea, setArrastrandoVerticeLinea] = useState(false);
   const [indiceLineaSeleccionada, setIndiceLineaSeleccionada] = useState<number | null>(null);
-  const [tipoVerticeSeleccionado, setTipoVerticeSeleccionado] = useState<'inicio' | 'fin' | null>(
-    null
-  );
+  const [tipoVerticeLineaSeleccionado, setTipoVerticeLineaSeleccionado] = useState<'inicio' | 'fin' | null>(null);
 
-  // Modos de dibujo
-  const [modoDibujo, setModoDibujo] = useState(false); // Modo de dibujo de líneas
-  const [modoParedes, setModoParedes] = useState(false); // Modo de dibujo de paredes (polígonos)
-
-  // Nuevo estado para manejar múltiples polígonos
+  // Estados para polígonos
   const [poligonos, setPoligonos] = useState<{ x: number; y: number }[][]>([]);
   const [poligonoActual, setPoligonoActual] = useState<{ x: number; y: number }[]>([]);
-  const [polygonClosed, setPolygonClosed] = useState(false);
-
-  // Estados para arrastrar vértices del polígono
-  const [arrastrandoVerticePared, setArrastrandoVerticePared] = useState(false);
+  const [dibujandoPoligono, setDibujandoPoligono] = useState(false);
+  const [arrastrandoVerticePoligono, setArrastrandoVerticePoligono] = useState(false);
   const [indicePoligonoSeleccionado, setIndicePoligonoSeleccionado] = useState<number | null>(null);
-  const [indiceVerticeParedSeleccionado, setIndiceVerticeParedSeleccionado] = useState<number | null>(null);
+  const [indiceVerticePoligonoSeleccionado, setIndiceVerticePoligonoSeleccionado] = useState<number | null>(null);
 
-  const iniciarInteraccion = (evento: any) => {
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    // Inicializar el contexto y dibujar
+    draw();
+  }, []);
+
+  useEffect(() => {
+    draw();
+  }, [lineas, poligonos, poligonoActual, dibujandoLinea, posicionFinLinea]);
+
+  const iniciarInteraccion = (evento: React.MouseEvent<HTMLCanvasElement>) => {
     const { offsetX, offsetY } = evento.nativeEvent;
 
-    // Priorizar el modo dibujo
+    if (modoBorrar) {
+      // Verificar si se hizo clic en un borde de algún polígono
+      const indicePoligono = hitTestPolygonEdge(offsetX, offsetY, poligonos);
+      if (indicePoligono !== null) {
+        // Eliminar el polígono
+        const nuevosPoligonos = [...poligonos];
+        nuevosPoligonos.splice(indicePoligono, 1);
+        setPoligonos(nuevosPoligonos);
+        draw();
+        return;
+      }
+
+      // Verificar si se hizo clic en alguna línea
+      const indiceLinea = hitTestLine(offsetX, offsetY, lineas);
+      if (indiceLinea !== null) {
+        // Eliminar la línea
+        const nuevasLineas = [...lineas];
+        nuevasLineas.splice(indiceLinea, 1);
+        setLineas(nuevasLineas);
+        draw();
+      }
+
+      return; // Salir de la función ya que estamos en modo borrar
+    }
+
     if (modoDibujo) {
       // Iniciar una nueva línea
-      setPosicionInicio({ x: offsetX, y: offsetY });
-      setPosicionFin({ x: offsetX, y: offsetY });
-      setDibujando(true);
+      setPosicionInicioLinea({ x: offsetX, y: offsetY });
+      setPosicionFinLinea({ x: offsetX, y: offsetY });
+      setDibujandoLinea(true);
     } else if (modoParedes) {
-      if (poligonoActual.length === 0) {
-        // Primer vértice
+      if (!dibujandoPoligono) {
         setPoligonoActual([{ x: offsetX, y: offsetY }]);
+        setDibujandoPoligono(true);
       } else {
         // Verificar si se hizo clic en el primer vértice para cerrar el polígono
         const distanciaPrimerVertice = Math.hypot(
@@ -59,116 +99,107 @@ const CanvasContainer = () => {
         );
         const radio = 5;
         if (distanciaPrimerVertice <= radio) {
-          // Agregar el primer vértice al final para cerrar el polígono
+          // Cerrar el polígono
           const nuevoPoligono = [...poligonoActual, poligonoActual[0]];
-          setPoligonoActual(nuevoPoligono);
-          setPolygonClosed(true); // Marcar el polígono como cerrado
-
-          // Agregar el polígono a la lista de polígonos
           setPoligonos([...poligonos, nuevoPoligono]);
-          setPoligonoActual([]); // Reiniciar el polígono actual
+          setPoligonoActual([]);
+          setDibujandoPoligono(false);
           setModoParedes(false);
         } else {
-          // Agregar nuevo vértice al polígono actual
+          // Agregar nuevo vértice
           setPoligonoActual([...poligonoActual, { x: offsetX, y: offsetY }]);
         }
       }
     } else {
-      // Si no estamos en modo dibujo ni en modo paredes
-      // Verificar si se hizo clic cerca de un vértice de algún polígono
-      for (let i = 0; i < poligonos.length; i++) {
-        const poligono = poligonos[i];
-        const indiceVertice = hitTestPolygonVertex(offsetX, offsetY, poligono);
-        if (indiceVertice !== null) {
-          setArrastrandoVerticePared(true);
-          setIndicePoligonoSeleccionado(i);
-          setIndiceVerticeParedSeleccionado(indiceVertice);
-          return;
-        }
+      // Verificar si se hizo clic en un vértice de algún polígono
+      const resultadoPoligono = hitTestPolygonsVertex(offsetX, offsetY, poligonos);
+      if (resultadoPoligono) {
+        setArrastrandoVerticePoligono(true);
+        setIndicePoligonoSeleccionado(resultadoPoligono.indicePoligono);
+        setIndiceVerticePoligonoSeleccionado(resultadoPoligono.indiceVertice);
+        return;
       }
 
-      // Verificar si se hizo clic cerca de un vértice existente para moverlo
-      const resultado = hitTestVertex(offsetX, offsetY, lineas);
-      if (resultado) {
-        setArrastrandoVertice(true);
-        setIndiceLineaSeleccionada(resultado.indice);
-        setTipoVerticeSeleccionado(resultado.tipoVertice);
+      // Verificar si se hizo clic en un vértice de alguna línea
+      const resultadoLinea = hitTestVertex(offsetX, offsetY, lineas);
+      if (resultadoLinea) {
+        setArrastrandoVerticeLinea(true);
+        setIndiceLineaSeleccionada(resultadoLinea.indice);
+        setTipoVerticeLineaSeleccionado(resultadoLinea.tipoVertice);
       }
     }
   };
 
   const finalizarInteraccion = () => {
-    if (dibujando) {
-      // Calcular la distancia entre el inicio y el fin de la línea
+    if (dibujandoLinea) {
+      // Agregar línea si tiene distancia mayor a cero
       const distancia = Math.hypot(
-        posicionFin.x - posicionInicio.x,
-        posicionFin.y - posicionInicio.y
+        posicionFinLinea.x - posicionInicioLinea.x,
+        posicionFinLinea.y - posicionInicioLinea.y
       );
 
-      // Solo agregar la línea si la distancia es mayor que cero
       if (distancia > 0) {
-        // Agregar nueva línea al finalizar el dibujo
         const nuevaLinea = {
-          inicio: posicionInicio,
-          fin: posicionFin,
+          inicio: posicionInicioLinea,
+          fin: posicionFinLinea,
         };
         setLineas([...lineas, nuevaLinea]);
       }
-      setDibujando(false);
+      setDibujandoLinea(false);
     }
-    if (arrastrandoVertice) {
-      setArrastrandoVertice(false);
+
+    if (arrastrandoVerticeLinea) {
+      setArrastrandoVerticeLinea(false);
       setIndiceLineaSeleccionada(null);
-      setTipoVerticeSeleccionado(null);
+      setTipoVerticeLineaSeleccionado(null);
     }
-    if (arrastrandoVerticePared) {
-      setArrastrandoVerticePared(false);
-      setIndiceVerticeParedSeleccionado(null);
+
+    if (arrastrandoVerticePoligono) {
+      setArrastrandoVerticePoligono(false);
       setIndicePoligonoSeleccionado(null);
+      setIndiceVerticePoligonoSeleccionado(null);
     }
   };
 
   const manejarMovimiento = (evento: React.MouseEvent<HTMLCanvasElement>) => {
     const { offsetX, offsetY } = evento.nativeEvent;
 
-    if (arrastrandoVerticePared && indicePoligonoSeleccionado !== null && indiceVerticeParedSeleccionado !== null) {
-      // Actualizar la posición del vértice que se está arrastrando
-      const nuevosPoligonos = [...poligonos];
-      const poligono = nuevosPoligonos[indicePoligonoSeleccionado];
-      poligono[indiceVerticeParedSeleccionado] = { x: offsetX, y: offsetY };
-
-      // Si se mueve el primer o último vértice, actualizar ambos
-      if (indiceVerticeParedSeleccionado === 0) {
-        poligono[poligono.length - 1] = { x: offsetX, y: offsetY };
-      } else if (indiceVerticeParedSeleccionado === poligono.length - 1) {
-        poligono[0] = { x: offsetX, y: offsetY };
-      }
-
-      setPoligonos(nuevosPoligonos);
-      // Redibujar el canvas
-      draw();
-    } else if (modoParedes && poligonoActual.length > 0) {
-      // Redibujar el polígono en construcción
+    if (dibujandoLinea) {
+      setPosicionFinLinea({ x: offsetX, y: offsetY });
+    } else if (dibujandoPoligono) {
       draw(offsetX, offsetY);
-    } else if (arrastrandoVertice && indiceLineaSeleccionada !== null && tipoVerticeSeleccionado) {
-      // Actualizar la posición del vértice que se está arrastrando
+    } else if (arrastrandoVerticeLinea && indiceLineaSeleccionada !== null && tipoVerticeLineaSeleccionado) {
+      // Actualizar posición del vértice de la línea
       const nuevasLineas = [...lineas];
       const linea = nuevasLineas[indiceLineaSeleccionada];
 
-      if (tipoVerticeSeleccionado === 'inicio') {
+      if (tipoVerticeLineaSeleccionado === 'inicio') {
         linea.inicio = { x: offsetX, y: offsetY };
-      } else if (tipoVerticeSeleccionado === 'fin') {
+      } else if (tipoVerticeLineaSeleccionado === 'fin') {
         linea.fin = { x: offsetX, y: offsetY };
       }
 
       setLineas(nuevasLineas);
-      // Redibujar el canvas
-      draw();
-    } else if (dibujando) {
-      // Actualizar la posición final de la nueva línea
-      setPosicionFin({ x: offsetX, y: offsetY });
-      // Redibujar con las nuevas coordenadas
-      draw();
+      draw(); // Redibujar el canvas para reflejar los cambios
+    } else if (
+      arrastrandoVerticePoligono &&
+      indicePoligonoSeleccionado !== null &&
+      indiceVerticePoligonoSeleccionado !== null
+    ) {
+      // Actualizar posición del vértice del polígono
+      const nuevosPoligonos = [...poligonos];
+      const poligono = nuevosPoligonos[indicePoligonoSeleccionado];
+      poligono[indiceVerticePoligonoSeleccionado] = { x: offsetX, y: offsetY };
+
+      // Si es el primer o último vértice, actualizar ambos
+      if (indiceVerticePoligonoSeleccionado === 0) {
+        poligono[poligono.length - 1] = { x: offsetX, y: offsetY };
+      } else if (indiceVerticePoligonoSeleccionado === poligono.length - 1) {
+        poligono[0] = { x: offsetX, y: offsetY };
+      }
+
+      setPoligonos(nuevosPoligonos);
+      draw(); // Redibujar el canvas para reflejar los cambios
     }
   };
 
@@ -181,46 +212,46 @@ const CanvasContainer = () => {
     // Limpiar el canvas
     contexto.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Dibujar todas las líneas existentes y sus vértices
+    // Dibujar líneas
     drawLines(contexto, lineas);
 
-    // Dibujar todos los polígonos existentes
-    poligonos.forEach((poligono) => {
-      drawPolygon(contexto, poligono, undefined, undefined, true);
-    });
+    // Dibujar polígonos
+    drawPolygons(contexto, poligonos);
 
-    // Dibujar el polígono en construcción
-    if (modoParedes && poligonoActual.length > 0) {
-      drawPolygon(contexto, poligonoActual, mouseX, mouseY, false);
+    // Dibujar polígono en construcción
+    if (dibujandoPoligono && poligonoActual.length > 0) {
+      const poligono = [...poligonoActual];
+      if (mouseX !== undefined && mouseY !== undefined) {
+        poligono.push({ x: mouseX, y: mouseY });
+      }
+      drawPolygons(contexto, [poligono]);
     }
 
-    // Si estamos dibujando una nueva línea, la dibujamos SOLO SI HAY MOVIMIENTO
-    if (dibujando) {
+    // Dibujar línea en curso
+    if (dibujandoLinea) {
       const distancia = Math.hypot(
-        posicionFin.x - posicionInicio.x,
-        posicionFin.y - posicionInicio.y
+        posicionFinLinea.x - posicionInicioLinea.x,
+        posicionFinLinea.y - posicionInicioLinea.y
       );
 
       if (distancia > 0) {
-        // Dibujar línea en curso
         contexto.beginPath();
-        contexto.moveTo(posicionInicio.x, posicionInicio.y);
-        contexto.lineTo(posicionFin.x, posicionFin.y);
+        contexto.moveTo(posicionInicioLinea.x, posicionInicioLinea.y);
+        contexto.lineTo(posicionFinLinea.x, posicionFinLinea.y);
         contexto.strokeStyle = 'black';
         contexto.lineWidth = 2;
         contexto.stroke();
         contexto.closePath();
 
-        // Dibujar vértice inicial
+        // Dibujar vértices
         contexto.beginPath();
-        contexto.arc(posicionInicio.x, posicionInicio.y, 5, 0, Math.PI * 2);
+        contexto.arc(posicionInicioLinea.x, posicionInicioLinea.y, 5, 0, Math.PI * 2);
         contexto.fillStyle = 'red';
         contexto.fill();
         contexto.closePath();
 
-        // Dibujar vértice final
         contexto.beginPath();
-        contexto.arc(posicionFin.x, posicionFin.y, 5, 0, Math.PI * 2);
+        contexto.arc(posicionFinLinea.x, posicionFinLinea.y, 5, 0, Math.PI * 2);
         contexto.fillStyle = 'red';
         contexto.fill();
         contexto.closePath();
@@ -228,35 +259,26 @@ const CanvasContainer = () => {
     }
   };
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-
-    // Dibujar inicialmente
-    draw();
-  }, []);
-
-  useEffect(() => {
-    // Redibujar cuando cambian las líneas o los polígonos
-    draw();
-  }, [lineas, poligonos, poligonoActual]);
-
   const handleActivarDibujo = () => {
     setModoDibujo(!modoDibujo);
-    setModoParedes(false); // Desactivar modo paredes si estaba activo
+    if (modoParedes) setModoParedes(false);
+    if (modoBorrar) setModoBorrar(false); // Desactivar modo borrar si estaba activo
   };
 
   const handleActivarParedes = () => {
     setModoParedes(!modoParedes);
-    setModoDibujo(false); // Desactivar modo dibujo si estaba activo
-    // No reiniciar los polígonos existentes
+    if (modoDibujo) setModoDibujo(false);
+    if (modoBorrar) setModoBorrar(false); // Desactivar modo borrar si estaba activo
     if (!modoParedes) {
-      // Si estamos activando el modo paredes, reiniciar el polígono actual
       setPoligonoActual([]);
-      setPolygonClosed(false);
+      setDibujandoPoligono(false);
     }
+  };
+
+  const handleActivarBorrar = () => {
+    setModoBorrar(!modoBorrar);
+    if (modoDibujo) setModoDibujo(false);
+    if (modoParedes) setModoParedes(false);
   };
 
   const handleLimpiarCanvas = () => {
@@ -266,15 +288,10 @@ const CanvasContainer = () => {
     setLineas([]);
     setPoligonos([]);
     setPoligonoActual([]);
-    setPolygonClosed(false);
   };
 
   const handleMostrarCoordenadas = () => {
-    // Coordenadas de los vértices de las líneas
-    const verticesLineas = lineas.flatMap((linea) => [linea.inicio, linea.fin]);
-    console.log('Coordenadas de los vértices de las líneas:', verticesLineas);
-
-    // Coordenadas de los polígonos
+    console.log('Coordenadas de los vértices de las líneas:', lineas);
     console.log('Coordenadas de los polígonos:', poligonos);
   };
 
@@ -286,15 +303,25 @@ const CanvasContainer = () => {
       <button onClick={handleActivarParedes}>
         {modoParedes ? 'Desactivar Paredes' : 'Activar Paredes'}
       </button>
+      <button
+        onClick={handleActivarBorrar}
+        style={{ backgroundColor: modoBorrar ? 'red' : 'initial' }}
+      >
+        Borrar Figura
+      </button>
       <button onClick={handleLimpiarCanvas}>Limpiar Pantalla</button>
       <button onClick={handleMostrarCoordenadas}>Mostrar Coordenadas</button>
+
       <canvas
         ref={canvasRef}
+        style={{
+          border: '1px solid #000',
+          cursor: modoDibujo || modoParedes ? 'crosshair' : modoBorrar ? 'pointer' : 'default',
+        }}
         onMouseDown={iniciarInteraccion}
         onMouseUp={finalizarInteraccion}
         onMouseOut={finalizarInteraccion}
         onMouseMove={manejarMovimiento}
-        style={{ border: '1px solid #000', cursor: modoDibujo || modoParedes ? 'crosshair' : 'default' }}
       />
 
       {/* Mostrar coordenadas en la interfaz */}
@@ -304,8 +331,8 @@ const CanvasContainer = () => {
           {lineas.map((linea, index) => (
             <li key={index}>
               Línea {index + 1}:
-              Inicio ({linea.inicio.x.toFixed(2)}, {linea.inicio.y.toFixed(2)})
-              - Fin ({linea.fin.x.toFixed(2)}, {linea.fin.y.toFixed(2)})
+              Inicio ({linea.inicio.x.toFixed(2)}, {linea.inicio.y.toFixed(2)}) -
+              Fin ({linea.fin.x.toFixed(2)}, {linea.fin.y.toFixed(2)})
             </li>
           ))}
         </ul>
