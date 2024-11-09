@@ -1,7 +1,6 @@
 import './App.css';
 import CanvasContainer from './components/CanvasContainer';
 import ResponsiveAppBar from './components/HeaderBar';
-import LoadingDialog from './components/LoadingDialog';
 import ModelContainer from './components/ModelContainer';
 
 function App() {
