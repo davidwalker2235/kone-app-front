@@ -11,6 +11,11 @@ import {
   hitTestPolygonsVertex,
   hitTestPolygonEdge,
 } from './PolygonLogic';
+import {
+  drawSquares,
+  hitTestSquareVertex,
+  hitTestSquareEdge,
+} from './SquareLogic';
 import { clearCanvas } from './CanvasLogic';
 
 const CanvasContainer = () => {
@@ -19,7 +24,8 @@ const CanvasContainer = () => {
   // Modos de dibujo
   const [modoDibujo, setModoDibujo] = useState(false);
   const [modoParedes, setModoParedes] = useState(false);
-  const [modoBorrar, setModoBorrar] = useState(false); // Nuevo estado para el modo borrar
+  const [modoCuadrado, setModoCuadrado] = useState(false); // Nuevo estado para modo cuadrado
+  const [modoBorrar, setModoBorrar] = useState(false);
 
   // Estados para líneas
   const [lineas, setLineas] = useState<
@@ -40,6 +46,16 @@ const CanvasContainer = () => {
   const [indicePoligonoSeleccionado, setIndicePoligonoSeleccionado] = useState<number | null>(null);
   const [indiceVerticePoligonoSeleccionado, setIndiceVerticePoligonoSeleccionado] = useState<number | null>(null);
 
+  // Estados para cuadrados
+  const [squares, setSquares] = useState<{ vertices: { x: number; y: number }[] }[]>([]);
+  const [dibujandoCuadrado, setDibujandoCuadrado] = useState(false);
+  const [pasoCuadrado, setPasoCuadrado] = useState(1);
+  const [posicionPrimerVerticeCuadrado, setPosicionPrimerVerticeCuadrado] = useState({ x: 0, y: 0 });
+  const [posicionSegundoVerticeCuadrado, setPosicionSegundoVerticeCuadrado] = useState({ x: 0, y: 0 });
+  const [arrastrandoVerticeCuadrado, setArrastrandoVerticeCuadrado] = useState(false);
+  const [indiceSquareSeleccionado, setIndiceSquareSeleccionado] = useState<number | null>(null);
+  const [indiceVerticeSquareSeleccionado, setIndiceVerticeSquareSeleccionado] = useState<number | null>(null);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -52,7 +68,15 @@ const CanvasContainer = () => {
 
   useEffect(() => {
     draw();
-  }, [lineas, poligonos, poligonoActual, dibujandoLinea, posicionFinLinea]);
+  }, [
+    lineas,
+    poligonos,
+    poligonoActual,
+    dibujandoLinea,
+    posicionFinLinea,
+    squares,
+    dibujandoCuadrado,
+  ]);
 
   const iniciarInteraccion = (evento: React.MouseEvent<HTMLCanvasElement>) => {
     const { offsetX, offsetY } = evento.nativeEvent;
@@ -77,9 +101,92 @@ const CanvasContainer = () => {
         nuevasLineas.splice(indiceLinea, 1);
         setLineas(nuevasLineas);
         draw();
+        return;
+      }
+
+      // Verificar si se hizo clic en un borde de algún cuadrado
+      const indiceSquare = hitTestSquareEdge(offsetX, offsetY, squares);
+      if (indiceSquare !== null) {
+        // Eliminar el cuadrado
+        const nuevosSquares = [...squares];
+        nuevosSquares.splice(indiceSquare, 1);
+        setSquares(nuevosSquares);
+        draw();
       }
 
       return; // Salir de la función ya que estamos en modo borrar
+    }
+
+    if (modoCuadrado) {
+      if (!dibujandoCuadrado) {
+        // Primer clic
+        setPosicionPrimerVerticeCuadrado({ x: offsetX, y: offsetY });
+        setDibujandoCuadrado(true);
+        setPasoCuadrado(2);
+      } else if (pasoCuadrado === 2) {
+        // Segundo clic
+        setPosicionSegundoVerticeCuadrado({ x: offsetX, y: offsetY });
+        setPasoCuadrado(3);
+      } else if (pasoCuadrado === 3) {
+        // Tercer clic
+        const vertex1 = posicionPrimerVerticeCuadrado;
+        const vertex2 = posicionSegundoVerticeCuadrado;
+        const vertex3Input = { x: offsetX, y: offsetY };
+
+        // Cálculo del cuadrado
+        const baseVector = {
+          x: vertex2.x - vertex1.x,
+          y: vertex2.y - vertex1.y,
+        };
+
+        // Vector perpendicular a la base
+        const perpVector = {
+          x: -baseVector.y,
+          y: baseVector.x,
+        };
+
+        // Calcular la altura proyectando el vector desde vertex1 a vertex3Input sobre el vector perpendicular
+        const heightVector = {
+          x: vertex3Input.x - vertex1.x,
+          y: vertex3Input.y - vertex1.y,
+        };
+
+        // Proyección escalar de heightVector sobre perpVector
+        const dotProduct = heightVector.x * perpVector.x + heightVector.y * perpVector.y;
+        const perpLengthSquared = perpVector.x ** 2 + perpVector.y ** 2;
+        const scale = dotProduct / perpLengthSquared;
+
+        // Vector perpendicular escalado
+        const scaledPerpVector = {
+          x: perpVector.x * scale,
+          y: perpVector.y * scale,
+        };
+
+        // Calcular los otros dos vértices
+        const vertex3 = {
+          x: vertex2.x + scaledPerpVector.x,
+          y: vertex2.y + scaledPerpVector.y,
+        };
+        const vertex4 = {
+          x: vertex1.x + scaledPerpVector.x,
+          y: vertex1.y + scaledPerpVector.y,
+        };
+
+        // Agregar el quinto vértice igual al primero
+        const vertex5 = { ...vertex1 };
+
+        const newSquare = {
+          vertices: [vertex1, vertex2, vertex3, vertex4, vertex5], // Agregar vertex5
+        };
+
+        setSquares([...squares, newSquare]);
+
+        // Reiniciar estados
+        setDibujandoCuadrado(false);
+        setPasoCuadrado(1);
+      }
+
+      return; // Salir ya que estamos en modo cuadrado
     }
 
     if (modoDibujo) {
@@ -126,6 +233,16 @@ const CanvasContainer = () => {
         setArrastrandoVerticeLinea(true);
         setIndiceLineaSeleccionada(resultadoLinea.indice);
         setTipoVerticeLineaSeleccionado(resultadoLinea.tipoVertice);
+        return;
+      }
+
+      // Verificar si se hizo clic en un vértice de algún cuadrado
+      const resultadoSquare = hitTestSquareVertex(offsetX, offsetY, squares);
+      if (resultadoSquare) {
+        setArrastrandoVerticeCuadrado(true);
+        setIndiceSquareSeleccionado(resultadoSquare.indiceSquare);
+        setIndiceVerticeSquareSeleccionado(resultadoSquare.indiceVertice);
+        return;
       }
     }
   };
@@ -159,6 +276,12 @@ const CanvasContainer = () => {
       setIndicePoligonoSeleccionado(null);
       setIndiceVerticePoligonoSeleccionado(null);
     }
+
+    if (arrastrandoVerticeCuadrado) {
+      setArrastrandoVerticeCuadrado(false);
+      setIndiceSquareSeleccionado(null);
+      setIndiceVerticeSquareSeleccionado(null);
+    }
   };
 
   const manejarMovimiento = (evento: React.MouseEvent<HTMLCanvasElement>) => {
@@ -167,6 +290,8 @@ const CanvasContainer = () => {
     if (dibujandoLinea) {
       setPosicionFinLinea({ x: offsetX, y: offsetY });
     } else if (dibujandoPoligono) {
+      draw(offsetX, offsetY);
+    } else if (dibujandoCuadrado && modoCuadrado) {
       draw(offsetX, offsetY);
     } else if (arrastrandoVerticeLinea && indiceLineaSeleccionada !== null && tipoVerticeLineaSeleccionado) {
       // Actualizar posición del vértice de la línea
@@ -200,6 +325,25 @@ const CanvasContainer = () => {
 
       setPoligonos(nuevosPoligonos);
       draw(); // Redibujar el canvas para reflejar los cambios
+    } else if (
+      arrastrandoVerticeCuadrado &&
+      indiceSquareSeleccionado !== null &&
+      indiceVerticeSquareSeleccionado !== null
+    ) {
+      // Actualizar posición del vértice del cuadrado
+      const nuevosSquares = [...squares];
+      const square = nuevosSquares[indiceSquareSeleccionado];
+      square.vertices[indiceVerticeSquareSeleccionado] = { x: offsetX, y: offsetY };
+
+      // Si es el primer o último vértice, actualizar ambos
+      if (indiceVerticeSquareSeleccionado === 0) {
+        square.vertices[square.vertices.length - 1] = { x: offsetX, y: offsetY };
+      } else if (indiceVerticeSquareSeleccionado === square.vertices.length - 1) {
+        square.vertices[0] = { x: offsetX, y: offsetY };
+      }
+
+      setSquares(nuevosSquares);
+      draw(); // Redibujar el canvas para reflejar los cambios
     }
   };
 
@@ -217,6 +361,9 @@ const CanvasContainer = () => {
 
     // Dibujar polígonos
     drawPolygons(contexto, poligonos);
+
+    // Dibujar cuadrados
+    drawSquares(contexto, squares);
 
     // Dibujar polígono en construcción
     if (dibujandoPoligono && poligonoActual.length > 0) {
@@ -257,21 +404,124 @@ const CanvasContainer = () => {
         contexto.closePath();
       }
     }
+
+    // Dibujar cuadrado en curso
+    if (dibujandoCuadrado && modoCuadrado) {
+      if (pasoCuadrado === 2) {
+        // Dibujar base del cuadrado
+        contexto.beginPath();
+        contexto.moveTo(posicionPrimerVerticeCuadrado.x, posicionPrimerVerticeCuadrado.y);
+        contexto.lineTo(mouseX!, mouseY!);
+        contexto.strokeStyle = 'black';
+        contexto.lineWidth = 2;
+        contexto.stroke();
+        contexto.closePath();
+
+        // Dibujar vértices
+        contexto.beginPath();
+        contexto.arc(posicionPrimerVerticeCuadrado.x, posicionPrimerVerticeCuadrado.y, 5, 0, Math.PI * 2);
+        contexto.fillStyle = 'blue';
+        contexto.fill();
+        contexto.closePath();
+
+        contexto.beginPath();
+        contexto.arc(mouseX!, mouseY!, 5, 0, Math.PI * 2);
+        contexto.fillStyle = 'blue';
+        contexto.fill();
+        contexto.closePath();
+      } else if (pasoCuadrado === 3) {
+        const vertex1 = posicionPrimerVerticeCuadrado;
+        const vertex2 = posicionSegundoVerticeCuadrado;
+        const vertex3Input = { x: mouseX!, y: mouseY! };
+
+        // Cálculo provisional del cuadrado para mostrarlo mientras se mueve el ratón
+        const baseVector = {
+          x: vertex2.x - vertex1.x,
+          y: vertex2.y - vertex1.y,
+        };
+        const perpVector = {
+          x: -baseVector.y,
+          y: baseVector.x,
+        };
+
+        const heightVector = {
+          x: vertex3Input.x - vertex1.x,
+          y: vertex3Input.y - vertex1.y,
+        };
+        const dotProduct = heightVector.x * perpVector.x + heightVector.y * perpVector.y;
+        const perpLengthSquared = perpVector.x ** 2 + perpVector.y ** 2;
+        const scale = dotProduct / perpLengthSquared;
+
+        const scaledPerpVector = {
+          x: perpVector.x * scale,
+          y: perpVector.y * scale,
+        };
+
+        const vertex3 = {
+          x: vertex2.x + scaledPerpVector.x,
+          y: vertex2.y + scaledPerpVector.y,
+        };
+        const vertex4 = {
+          x: vertex1.x + scaledPerpVector.x,
+          y: vertex1.y + scaledPerpVector.y,
+        };
+
+        // Agregar el quinto vértice igual al primero
+        const vertex5 = { ...vertex1 };
+
+        const vertices = [vertex1, vertex2, vertex3, vertex4, vertex5];
+
+        // Dibujar cuadrado
+        contexto.beginPath();
+        contexto.moveTo(vertices[0].x, vertices[0].y);
+        vertices.forEach((vertice, index) => {
+          if (index > 0) {
+            contexto.lineTo(vertice.x, vertice.y);
+          }
+        });
+        contexto.closePath();
+        contexto.strokeStyle = 'black';
+        contexto.lineWidth = 2;
+        contexto.stroke();
+
+        // Dibujar vértices
+        vertices.forEach((vertice) => {
+          contexto.beginPath();
+          contexto.arc(vertice.x, vertice.y, 5, 0, Math.PI * 2);
+          contexto.fillStyle = 'blue';
+          contexto.fill();
+          contexto.closePath();
+        });
+      }
+    }
   };
 
   const handleActivarDibujo = () => {
     setModoDibujo(!modoDibujo);
     if (modoParedes) setModoParedes(false);
-    if (modoBorrar) setModoBorrar(false); // Desactivar modo borrar si estaba activo
+    if (modoBorrar) setModoBorrar(false);
+    if (modoCuadrado) setModoCuadrado(false);
   };
 
   const handleActivarParedes = () => {
     setModoParedes(!modoParedes);
     if (modoDibujo) setModoDibujo(false);
-    if (modoBorrar) setModoBorrar(false); // Desactivar modo borrar si estaba activo
+    if (modoBorrar) setModoBorrar(false);
+    if (modoCuadrado) setModoCuadrado(false);
     if (!modoParedes) {
       setPoligonoActual([]);
       setDibujandoPoligono(false);
+    }
+  };
+
+  const handleActivarCuadrado = () => {
+    setModoCuadrado(!modoCuadrado);
+    if (modoDibujo) setModoDibujo(false);
+    if (modoParedes) setModoParedes(false);
+    if (modoBorrar) setModoBorrar(false);
+    if (!modoCuadrado) {
+      setDibujandoCuadrado(false);
+      setPasoCuadrado(1);
     }
   };
 
@@ -279,6 +529,7 @@ const CanvasContainer = () => {
     setModoBorrar(!modoBorrar);
     if (modoDibujo) setModoDibujo(false);
     if (modoParedes) setModoParedes(false);
+    if (modoCuadrado) setModoCuadrado(false);
   };
 
   const handleLimpiarCanvas = () => {
@@ -287,36 +538,55 @@ const CanvasContainer = () => {
     clearCanvas(canvas);
     setLineas([]);
     setPoligonos([]);
+    setSquares([]);
     setPoligonoActual([]);
   };
 
   const handleMostrarCoordenadas = () => {
     console.log('Coordenadas de los vértices de las líneas:', lineas);
     console.log('Coordenadas de los polígonos:', poligonos);
+    console.log('Coordenadas de los cuadrados:', squares);
   };
 
   return (
     <div>
-      <button onClick={handleActivarDibujo}>
-        {modoDibujo ? 'Desactivar Dibujo' : 'Activar Dibujo'}
+      <button
+        onClick={handleActivarDibujo}
+        style={{ backgroundColor: modoDibujo ? 'green' : 'initial' }}
+      >
+        {modoDibujo ? '✎' : '✎'}
       </button>
-      <button onClick={handleActivarParedes}>
-        {modoParedes ? 'Desactivar Paredes' : 'Activar Paredes'}
+      <button
+        onClick={handleActivarParedes}
+        style={{ backgroundColor: modoParedes ? 'green' : 'initial' }}
+      >
+        {modoParedes ? '📐' : '📐'}
+      </button>
+      <button
+        onClick={handleActivarCuadrado}
+        style={{ backgroundColor: modoCuadrado ? 'green' : 'initial' }}
+      >
+        {modoCuadrado ? '🔳' : '🔳'}
       </button>
       <button
         onClick={handleActivarBorrar}
         style={{ backgroundColor: modoBorrar ? 'red' : 'initial' }}
       >
-        Borrar Figura
+        🗑
       </button>
-      <button onClick={handleLimpiarCanvas}>Limpiar Pantalla</button>
-      <button onClick={handleMostrarCoordenadas}>Mostrar Coordenadas</button>
+      <button onClick={handleLimpiarCanvas}>Clean screen</button>
+      <button onClick={handleMostrarCoordenadas}>Show coordenates</button>
 
       <canvas
         ref={canvasRef}
         style={{
           border: '1px solid #000',
-          cursor: modoDibujo || modoParedes ? 'crosshair' : modoBorrar ? 'pointer' : 'default',
+          cursor:
+            modoDibujo || modoParedes || modoCuadrado
+              ? 'crosshair'
+              : modoBorrar
+              ? 'pointer'
+              : 'default',
         }}
         onMouseDown={iniciarInteraccion}
         onMouseUp={finalizarInteraccion}
@@ -346,6 +616,21 @@ const CanvasContainer = () => {
                 <li key={index}>
                   Vértice {index + 1}: ({vertice.x.toFixed(2)}, {vertice.y.toFixed(2)})
                   {index === poligono.length - 1 && index !== 0 && ' (Igual al Vértice 1)'}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+
+        <h3>Coordenadas de los cuadrados:</h3>
+        {squares.map((square, i) => (
+          <div key={i}>
+            <h4>Cuadrado {i + 1}:</h4>
+            <ul>
+              {square.vertices.map((vertice, index) => (
+                <li key={index}>
+                  Vértice {index + 1}: ({vertice.x.toFixed(2)}, {vertice.y.toFixed(2)})
+                  {index === square.vertices.length - 1 && index !== 0 && ' (Igual al Vértice 1)'}
                 </li>
               ))}
             </ul>
