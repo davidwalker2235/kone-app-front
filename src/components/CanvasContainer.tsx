@@ -59,6 +59,11 @@ const CanvasContainer = () => {
   const [indiceSquareSeleccionado, setIndiceSquareSeleccionado] = useState<number | null>(null);
   const [indiceVerticeSquareSeleccionado, setIndiceVerticeSquareSeleccionado] = useState<number | null>(null);
 
+  // Estados para los nuevos inputs y selects
+  const [floorHeight, setFloorHeight] = useState<number>(3.0);
+  const [floors, setFloors] = useState<number>(1);
+  const [underFloors, setUnderFloors] = useState<number>(1);
+
   // Imagen de fondo
   const [imagenFondo, setImagenFondo] = useState<HTMLImageElement | null>(null);
 
@@ -82,7 +87,7 @@ const CanvasContainer = () => {
     // Cargar la imagen de fondo
     const imagen = new Image();
     // Reemplaza 'ruta-de-la-imagen.jpg' con la ruta o URL de tu imagen
-    imagen.src = plane // Actualiza la ruta de la imagen aquí
+    imagen.src = plane; // Actualiza la ruta de la imagen aquí
     imagen.onload = () => {
       setImagenFondo(imagen);
       draw(); // Redibujar el canvas una vez que la imagen esté cargada
@@ -170,7 +175,6 @@ const CanvasContainer = () => {
         setPosicionSegundoVerticeCuadrado({ x: offsetX, y: offsetY });
         setPasoCuadrado(3);
       } else if (pasoCuadrado === 3) {
-        // Tercer clic
         const vertex1 = posicionPrimerVerticeCuadrado;
         const vertex2 = posicionSegundoVerticeCuadrado;
         const vertex3Input = { x: offsetX, y: offsetY };
@@ -643,6 +647,50 @@ const CanvasContainer = () => {
         </button>
         <button onClick={handleLimpiarCanvas}>Clean screen</button>
         <button onClick={sendPlanol}>Send plane</button>
+      </div>
+
+      {/* Añade los nuevos elementos aquí */}
+      <div style={{ marginTop: '10px', display: 'flex'}}>
+        <div>
+          <label>
+            Floor height:
+            <input
+              type="number"
+              value={floorHeight}
+              onChange={(e) => setFloorHeight(parseFloat(e.target.value))}
+            />
+          </label>
+        </div>
+        <div>
+          <label>
+            Floors:
+            <select
+              value={floors}
+              onChange={(e) => setFloors(parseInt(e.target.value))}
+            >
+              {[...Array(10)].map((_, i) => (
+                <option key={i + 1} value={i + 1}>
+                  {i + 1}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <div>
+          <label>
+            Under Floors:
+            <select
+              value={underFloors}
+              onChange={(e) => setUnderFloors(parseInt(e.target.value))}
+            >
+              {[...Array(3)].map((_, i) => (
+                <option key={i + 1} value={i + 1}>
+                  {i + 1}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
       </div>
 
       <div style={{ width: '100%', height: 'calc(100% - 150px)' }}>
