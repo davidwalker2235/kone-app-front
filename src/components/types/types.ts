@@ -4,6 +4,7 @@ export interface BuildingsListing {
   }
   
   export interface BuildsDetails {
+    id: "string",
     buildingId: "string",
     name: "string",
     address: "string",

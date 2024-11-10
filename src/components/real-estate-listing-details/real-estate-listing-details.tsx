@@ -14,11 +14,12 @@ export const RealEstateListingDetails: FunctionComponent<Props> = ({
   const navigate = useNavigate();
   const {
     name,
-    address
+    address,
+    id
   } = details;
 
   const onClickSee = () => {
-    navigate("/creator");
+    navigate("/creator", {state: {id: id}});
   }
 
   return (

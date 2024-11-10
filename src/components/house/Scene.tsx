@@ -43,7 +43,7 @@ function Model({ arrayBuffer, texturePath }: any) {
   scene.position.set(0, 0, 0); // Ajustar posición si es necesario
   scene.scale.set(1, 1, 1);  
 
-  const sss = scene.traverse((node: any) => {
+  scene.traverse((node: any) => {
     if (node instanceof THREE.Mesh) {
       if (Array.isArray(node.material)) {
         node.material.forEach((material) => {
