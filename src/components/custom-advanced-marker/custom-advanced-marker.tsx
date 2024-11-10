@@ -3,23 +3,23 @@ import {AdvancedMarker} from '@vis.gl/react-google-maps';
 import classNames from 'classnames';
 
 import './custom-advanced-marker.css';
-import { RealEstateListing } from '../types/types';
+import { BuildingsListing, BuildsDetails } from '../types/types';
 import { RealEstateListingDetails } from '../real-estate-listing-details/real-estate-listing-details';
 import { RealEstateGallery } from '../real-estate-gallery/real-estate-gallery';
 import { RealEstateIcon } from '../icons/real-estate-icon';
 
 interface Props {
-  realEstateListing: RealEstateListing;
+  buildingListing: BuildsDetails;
 }
 
 export const CustomAdvancedMarker: FunctionComponent<Props> = ({
-  realEstateListing
+  buildingListing
 }) => {
   const [clicked, setClicked] = useState(false);
   const [hovered, setHovered] = useState(false);
   const position = {
-    lat: realEstateListing.details.latitude,
-    lng: realEstateListing.details.longitude
+    lat: buildingListing?.lat,
+    lng: buildingListing?.lng
   };
 
   const renderCustomPin = () => {
@@ -31,18 +31,13 @@ export const CustomAdvancedMarker: FunctionComponent<Props> = ({
           </button>
 
           <div className="image-container">
-            <RealEstateGallery
-              images={realEstateListing.images}
-              isExtended={clicked}
-            />
             <span className="icon">
               <RealEstateIcon />
             </span>
           </div>
 
-          <RealEstateListingDetails details={realEstateListing.details} />
+          <RealEstateListingDetails details={buildingListing} />
         </div>
-
         <div className="tip" />
       </>
     );

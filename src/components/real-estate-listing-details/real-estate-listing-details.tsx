@@ -1,49 +1,38 @@
 import React, {FunctionComponent} from 'react';
 
 import './real-estate-listing-details.css';
-import { getFormattedCurrency } from '../libs/format-currency';
-import { ListingDetails } from '../types/types';
-import { FloorplanIcon } from '../icons/floor-plan-icon';
-import { BathroomIcon } from '../icons/bathroom-icon';
-import { BedroomIcon } from '../icons/bedroom-icon';
+import { BuildsDetails } from '../types/types';
+import { useNavigate } from 'react-router-dom';
 
 interface Props {
-  details: ListingDetails;
+  details: BuildsDetails;
 }
 
 export const RealEstateListingDetails: FunctionComponent<Props> = ({
   details
 }) => {
+  const navigate = useNavigate();
   const {
-    property_address,
-    property_price,
-    listing_title,
-    property_bedrooms,
-    property_bathrooms,
-    property_square_feet,
-    listing_description
+    name,
+    address
   } = details;
+
+  const onClickSee = () => {
+    navigate("/creator");
+  }
 
   return (
     <div className="details-container">
       <div className="listing-content">
-        <h2>{listing_title}</h2>
-        <p>{property_address}</p>
-        <div className="details">
-          <div className="detail_item">
-            <FloorplanIcon /> {property_square_feet.replace('sq ft', 'ft²')}
-          </div>
-          <div className="detail_item">
-            <BathroomIcon /> {property_bathrooms}
-          </div>
-          <div className="detail_item">
-            <BedroomIcon /> {property_bedrooms}
-          </div>
-        </div>
+        <h2>{name}</h2>
+        <p>{address}</p>
 
-        <p className="description">{listing_description}</p>
+        <p className="description">This elevator building is located in the heart of the city, just steps from the beach.</p>
 
-        <p className="price">{property_price}</p>
+        <p className="price">Next evaluation: 2025</p>
+        <button onClick={onClickSee}>
+            <span className="material-symbols-outlined"> See </span>
+        </button>
       </div>
     </div>
   );

@@ -2,9 +2,9 @@ import axios from 'axios';
 
 const API_URL = 'https://your-api-endpoint.com';
 
-export const sendArrayToEndpoint = async (data: any[]): Promise<void> => {
+export const getInitialData = async (data: any[]): Promise<void> => {
     try {
-        const response = await axios.post(`${API_URL}/your-endpoint`, data);
+        const response = await axios.get(`${API_URL}/your-endpoint`);
         console.log('Data sent successfully:', response.data);
     } catch (error) {
         console.error('Error sending data:', error);
