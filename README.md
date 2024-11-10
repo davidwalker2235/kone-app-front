@@ -1,4 +1,4 @@
-#BIMBAM! application's Frontend
+# BIMBAM! application's Frontend
 
 Frontend for the "BIMBAM!" application developed for the KONE challenge at Junction 2024 Back Offline.
 
